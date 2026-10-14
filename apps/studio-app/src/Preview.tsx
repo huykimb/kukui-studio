@@ -442,6 +442,7 @@ const LIVE_ACTIVITY_KINDS: readonly ActivityKind[] = [
   "word-cloud",
   "qa-board",
   "quick-quiz",
+  "leaderboard-quiz",
   // "isometric-chatroom" — hidden from the Live launcher while the
   // runtime is being overhauled. Studio editing still works.
 ];
@@ -611,12 +612,6 @@ function LiveTestLauncher({
               {copied === "instructor" ? "Copied!" : "Copy instructor URL"}
             </button>
           </div>
-          {!adminKey ? (
-            <p className="kukui-studio-live-launch__warn">
-              No admin key set. Anyone with the student URL could claim host. Set one under{" "}
-              <em>Live session settings</em>.
-            </p>
-          ) : null}
         </div>
         <div className="kukui-studio-live-launch__col">
           <h4>As student</h4>

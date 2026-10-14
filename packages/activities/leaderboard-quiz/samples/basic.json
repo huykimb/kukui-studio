@@ -1,0 +1,50 @@
+{
+  "version": "1.0",
+  "title": "Medical Terms: Timed Recall",
+  "topics": [
+    { "id": "cardio", "label": "Cardiovascular" },
+    { "id": "neuro", "label": "Neuroanatomy" }
+  ],
+  "questions": [
+    {
+      "id": "q1",
+      "topicId": "cardio",
+      "prompt": "Medical term for a heart attack?",
+      "acceptedAnswers": ["myocardial infarction", "MI"],
+      "feedbackCorrect": "Yes: death of heart muscle from blocked blood flow."
+    },
+    {
+      "id": "q2",
+      "topicId": "cardio",
+      "prompt": "Medical term for high blood pressure?",
+      "acceptedAnswers": ["hypertension"]
+    },
+    {
+      "id": "q3",
+      "topicId": "cardio",
+      "prompt": "Chamber that pumps blood to the body?",
+      "acceptedAnswers": ["left ventricle"]
+    },
+    {
+      "id": "q4",
+      "topicId": "neuro",
+      "prompt": "Lobe that processes vision?",
+      "acceptedAnswers": ["occipital lobe", "occipital"]
+    },
+    {
+      "id": "q5",
+      "topicId": "neuro",
+      "prompt": "Structure joining the two cerebral hemispheres?",
+      "acceptedAnswers": ["corpus callosum"]
+    },
+    {
+      "id": "q6",
+      "topicId": "neuro",
+      "prompt": "Cranial nerve for smell?",
+      "acceptedAnswers": ["olfactory nerve", "olfactory", "cranial nerve I"]
+    }
+  ],
+  "round": { "questionCount": 5, "shuffle": true, "timeLimitSeconds": 60 },
+  "pointsPerCorrect": 10,
+  "live": { "signaling": "nostr" }
+}

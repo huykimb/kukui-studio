@@ -1,0 +1,64 @@
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { act, render, screen } from "@testing-library/react";
+import userEvent from "@testing-library/user-event";
+import Component from "./Component.js";
+import { LeaderboardQuizConfigSchema, type LeaderboardQuizConfig } from "./schema.js";
+import starter from "./starter.js";
+
+const cfg = LeaderboardQuizConfigSchema.parse({
+  ...starter,
+  questions: [
+    {
+      id: "q1",
+      topicId: "general",
+      prompt: "Heart attack?",
+      acceptedAnswers: ["myocardial infarction", "MI"],
+    },
+  ],
+  round: { questionCount: 1, shuffle: false, timeLimitSeconds: 30 },
+}) as LeaderboardQuizConfig;
+
+describe("LeaderboardQuiz", () => {
+  beforeEach(() => {
+    localStorage.clear();
+    vi.useFakeTimers({ shouldAdvanceTime: true });
+  });
+  afterEach(() => vi.useRealTimers());
+
+  it("renders the title and a Start button", () => {
+    render(<Component config={cfg} onSubmit={vi.fn()} />);
+    expect(screen.getByRole("heading", { level: 1, name: /leaderboard quiz/i })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /start/i })).toBeEnabled();
+  });
+
+  it("scores a normalized synonym as correct and submits after the last question", async () => {
+    const user = userEvent.setup({ advanceTimers: vi.advanceTimersByTime });
+    const onSubmit = vi.fn();
+    render(<Component config={cfg} onSubmit={onSubmit} />);
+    await user.click(screen.getByRole("button", { name: /start/i }));
+    await user.type(screen.getByRole("textbox", { name: /your answer/i }), " m.i. ");
+    await user.click(screen.getByRole("button", { name: /submit/i }));
+    expect(screen.getByRole("status")).toHaveTextContent(/correct/i);
+    await act(async () => {
+      vi.advanceTimersByTime(1300);
+    });
+    expect(onSubmit).toHaveBeenCalledTimes(1);
+    expect(onSubmit.mock.calls[0]?.[0]).toMatchObject({ raw: 10, max: 10, success: true });
+    expect(JSON.parse(localStorage.getItem("leaderboardquiz:Leaderboard Quiz")!)).toMatchObject({
+      bestScore: 10,
+      attempts: 1,
+    });
+  });
+
+  it("submits when the timer runs out", async () => {
+    const user = userEvent.setup({ advanceTimers: vi.advanceTimersByTime });
+    const onSubmit = vi.fn();
+    render(<Component config={cfg} onSubmit={onSubmit} />);
+    await user.click(screen.getByRole("button", { name: /start/i }));
+    await act(async () => {
+      vi.advanceTimersByTime(31_000);
+    });
+    expect(onSubmit.mock.calls[0]?.[0]).toMatchObject({ raw: 0, max: 10, success: false });
+    expect(screen.getByText(/time's up/i)).toBeInTheDocument();
+  });
+});
