@@ -39,4 +39,19 @@ describe("shuffle setting", () => {
     act(() => student.result.current.setManualIndex(2));
     expect(student.result.current.manual.index).toBe(1);
   });
+
+  it("showBoard defaults to true; the instructor can hide it for students only", () => {
+    const a = new Y.Doc();
+    const b = new Y.Doc();
+    a.on("update", (u: Uint8Array) => Y.applyUpdate(b, u));
+    const teacher = renderHook(() => useLeaderboardQuiz(room(a, "t"), "instructor", true));
+    const student = renderHook(() => useLeaderboardQuiz(room(b, "s"), "student", true));
+    expect(student.result.current.showBoard).toBe(true);
+    act(() => teacher.result.current.setShowBoard(false));
+    expect(student.result.current.showBoard).toBe(false);
+    act(() => student.result.current.setShowBoard(true));
+    expect(student.result.current.showBoard).toBe(false);
+    act(() => teacher.result.current.setShowBoard(true));
+    expect(student.result.current.showBoard).toBe(true);
+  });
 });

@@ -1,8 +1,14 @@
-import { useEffect, useId, useMemo, useRef, useState } from "react";
+import { Fragment, useEffect, useId, useMemo, useRef, useState } from "react";
 import type { ActivityProps } from "@kukui/core/types";
 import { bandMessage, percentage, resolveScoring } from "@kukui/core/scoring";
 import { ActivityHeader } from "@kukui/core";
-import { normalizeAnswer, type LeaderboardQuizConfig, type LeaderboardQuizQuestion } from "./schema.js";
+import {
+  answerLists,
+  answerText,
+  isComplete,
+  isCorrect,
+  promptParts,
+  type LeaderboardQuizConfig, type LeaderboardQuizQuestion } from "./schema.js";
 import "./Component.css";
 
 type Stage = "start" | "playing" | "done";
@@ -57,7 +63,7 @@ export function Component({ config, onSubmit, headingLevel = 1 }: ActivityProps<
   const [idx, setIdx] = useState(0);
   const [correct, setCorrect] = useState(0);
   const [left, setLeft] = useState(config.round.timeLimitSeconds);
-  const [answer, setAnswer] = useState("");
+  const [answers, setAnswers] = useState<string[]>([]);
   const [result, setResult] = useState<{ ok: boolean; q: LeaderboardQuizQuestion } | null>(null);
   const [record, setRecord] = useState<PersonalRecord | null>(() => loadRecord(key));
   const startedAt = useRef(0);
@@ -85,7 +91,7 @@ export function Component({ config, onSubmit, headingLevel = 1 }: ActivityProps<
     setIdx(0);
     setCorrect(0);
     setLeft(config.round.timeLimitSeconds);
-    setAnswer("");
+    setAnswers([]);
     setResult(null);
     startedAt.current = Date.now();
     setStage("playing");
@@ -131,7 +137,7 @@ export function Component({ config, onSubmit, headingLevel = 1 }: ActivityProps<
     if (!result) return;
     const id = setTimeout(() => {
       setResult(null);
-      setAnswer("");
+      setAnswers([]);
       if (idx + 1 >= deck.length) finish();
       else setIdx(idx + 1);
     }, FEEDBACK_MS);
@@ -142,8 +148,8 @@ export function Component({ config, onSubmit, headingLevel = 1 }: ActivityProps<
   const submitAnswer = (e: React.FormEvent) => {
     e.preventDefault();
     const q = deck[idx];
-    if (!q || result || answer.trim() === "") return;
-    const ok = q.acceptedAnswers.some((a) => normalizeAnswer(a) === normalizeAnswer(answer));
+    if (!q || result || !isComplete(q, answers)) return;
+    const ok = isCorrect(q, answers);
     if (ok) setCorrect((c) => c + 1);
     setResult({ ok, q });
   };
@@ -169,6 +175,25 @@ export function Component({ config, onSubmit, headingLevel = 1 }: ActivityProps<
     : "No saved record yet.";
 
   const q = deck[idx];
+  const parts = q ? promptParts(q) : null;
+  const answerInputs = q
+    ? answerLists(q).map((_, i) => (
+        <input
+          key={i}
+          className={["kukui-tq__input", result ? (result.ok ? "is-correct" : "is-incorrect") : ""].filter(Boolean).join(" ")}
+          value={answers[i] ?? ""}
+          onChange={(e) => setAnswers((a) => Object.assign([...a], { [i]: e.target.value }))}
+          readOnly={!!result}
+          aria-label={answerLists(q).length > 1 ? `Blank ${i + 1}` : "Your answer"}
+          autoComplete="off"
+          autoCorrect="off"
+          autoCapitalize="off"
+          spellCheck={false}
+          // eslint-disable-next-line jsx-a11y/no-autofocus
+          autoFocus={i === 0}
+        />
+      ))
+    : [];
   const max = deck.length * config.pointsPerCorrect;
   const raw = correct * config.pointsPerCorrect;
 
@@ -225,25 +250,22 @@ export function Component({ config, onSubmit, headingLevel = 1 }: ActivityProps<
               <span>{raw} pts</span>
               <span role="timer">{Math.max(left, 0)}s left</span>
             </div>
-            <p className="kukui-tq__prompt">{q.prompt}</p>
+            {parts ? null : <p className="kukui-tq__prompt">{q.prompt}</p>}
             {q.image ? <img className="kukui-tq__image" src={q.image.src} alt={q.image.alt} draggable={false} /> : null}
             <form className="kukui-tq__form" onSubmit={submitAnswer}>
-              <input
-                className={["kukui-tq__input", result ? (result.ok ? "is-correct" : "is-incorrect") : ""]
-                  .filter(Boolean)
-                  .join(" ")}
-                value={answer}
-                onChange={(e) => setAnswer(e.target.value)}
-                readOnly={!!result}
-                aria-label="Your answer"
-                autoComplete="off"
-                autoCorrect="off"
-                autoCapitalize="off"
-                spellCheck={false}
-                // eslint-disable-next-line jsx-a11y/no-autofocus
-                autoFocus
-              />
-              <button type="submit" className="kukui-tq__primary" disabled={!!result || answer.trim() === ""}>
+              {parts ? (
+                <p className="kukui-tq__prompt kukui-tq__blank">
+                  {parts.map((text, i) => (
+                    <Fragment key={i}>
+                      {text}
+                      {answerInputs[i]}
+                    </Fragment>
+                  ))}
+                </p>
+              ) : (
+                answerInputs
+              )}
+              <button type="submit" className="kukui-tq__primary" disabled={!!result || !isComplete(q, answers)}>
                 {t("submit")}
               </button>
             </form>
@@ -256,7 +278,7 @@ export function Component({ config, onSubmit, headingLevel = 1 }: ActivityProps<
               {result
                 ? result.ok
                   ? `✓ Correct. ${result.q.feedbackCorrect ?? ""}`
-                  : `✗ Incorrect. Answer: ${result.q.acceptedAnswers[0]}. ${result.q.feedbackIncorrect ?? ""}`
+                  : `✗ Incorrect. Answer: ${answerText(result.q)}. ${result.q.feedbackIncorrect ?? ""}`
                 : ""}
             </p>
           </>

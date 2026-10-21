@@ -62,7 +62,12 @@ export function ObjectFieldTemplate(props: ObjectFieldTemplateProps) {
   // `ui:options: { advanced: false }`.
   const fieldName = idSchema?.$id?.split("_").pop() ?? "";
   const uiOptions = ((uiSchema ?? {}) as Record<string, unknown>)["ui:options"] as
-    | { advanced?: boolean; foldable?: boolean; compact?: boolean }
+    | {
+        advanced?: boolean;
+        foldable?: boolean;
+        compact?: boolean;
+        foldFields?: { title: string; fields: string[] };
+      }
     | undefined;
   const isAdvanced =
     uiOptions?.advanced === true ||
@@ -89,16 +94,34 @@ export function ObjectFieldTemplate(props: ObjectFieldTemplateProps) {
     );
   }
 
+  // `foldFields: { title, fields }` tucks the named fields into one collapsed
+  // section after the rest, for optional extras (e.g. per-question feedback).
+  const fold = uiOptions?.foldFields;
+  const folded = fold ? properties.filter((p) => fold.fields.includes(p.name)) : [];
+  const shown = fold ? properties.filter((p) => !fold.fields.includes(p.name)) : properties;
+
   return (
     <section className="ks-object">
       {showTitle ? <h3 className="ks-object__title">{title}</h3> : null}
       {description ? <p className="ks-object__desc">{description}</p> : null}
       <div className="ks-object__body">
-        {properties.map((p) => (
+        {shown.map((p) => (
           <div key={p.name} className="ks-field">
             {p.content}
           </div>
         ))}
+        {fold && folded.length > 0 ? (
+          <details className="ks-object ks-object--advanced ks-object--foldable">
+            <summary className="ks-object__title ks-object__title--summary">{fold.title}</summary>
+            <div className="ks-object__body">
+              {folded.map((p) => (
+                <div key={p.name} className="ks-field">
+                  {p.content}
+                </div>
+              ))}
+            </div>
+          </details>
+        ) : null}
       </div>
     </section>
   );

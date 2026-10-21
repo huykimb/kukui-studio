@@ -10,6 +10,13 @@
   color: var(--color-text-secondary);
 }
 
+/* No image: drop the grey card so the question sits on the page background. */
+.kukui-live-prompt--plain {
+  padding: 0;
+  background: none;
+  border-left: 0;
+}
+
 .kukui-lq__form {
   display: flex;
   flex-wrap: wrap;
@@ -124,13 +131,41 @@
   color: var(--color-text-primary);
 }
 
+.kukui-lq__settings {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0 var(--spacing-lg, 16px);
+  margin-top: var(--spacing-lg, 16px);
+}
+
+.kukui-lq__settings .kukui-lq__toggle {
+  margin-top: 0;
+}
+
 .kukui-lq__toggle + .kukui-lq__toggle {
   margin-top: 0;
 }
 
-.kukui-lq__toggle input {
+.kukui-lq__toggle input[type="checkbox"] {
   width: 20px;
   height: 20px;
+}
+
+.kukui-lq__toggle input[type="number"] {
+  width: 96px;
+  min-height: 44px;
+  padding: 4px 10px;
+  background: var(--color-surface);
+  border: 2px solid var(--color-border);
+  border-radius: var(--radius-md, 8px);
+  font-size: var(--font-size-answer, 15px);
+  color: var(--color-text-primary);
+}
+
+.kukui-lq__toggle input[type="number"]:focus-visible {
+  outline: 2px solid var(--color-primary);
+  outline-offset: 2px;
 }
 
 /* Boxed dropdown, same field styling as the answer input. */
@@ -154,4 +189,59 @@
 .kukui-lq__toggle select:disabled {
   cursor: not-allowed;
   opacity: 0.6;
+}
+
+/* Fill-in-the-blank: the answer input sits inline where the ___ was. */
+.kukui-lq__blank {
+  flex-basis: 100%;
+  margin: 0;
+  font-size: var(--font-size-prompt, 16px);
+  line-height: 1.5;
+  color: var(--color-text-primary);
+}
+
+.kukui-lq__blank .kukui-lq__input {
+  display: inline-block;
+  width: 10em;
+  max-width: 100%;
+  margin: 0 var(--spacing-xs, 4px);
+  vertical-align: middle;
+}
+
+/* End-of-round review. Status is text-prefixed (✓ / ✗ / –), so color is never the only cue. */
+.kukui-lq__results-title {
+  margin: var(--spacing-lg, 16px) 0 var(--spacing-md, 12px);
+  font-size: var(--font-size-prompt, 16px);
+  color: var(--color-text-primary);
+}
+
+.kukui-lq__results-list {
+  display: grid;
+  gap: var(--spacing-md, 12px);
+  margin: 0 0 var(--spacing-lg, 16px);
+  padding: 0;
+  list-style: none;
+}
+
+.kukui-lq__result {
+  padding: var(--spacing-md, 12px);
+  background: var(--color-surface);
+  border: 2px solid var(--color-border);
+  border-radius: var(--radius-md, 8px);
+  font-size: var(--font-size-caption, 14px);
+  color: var(--color-text-secondary);
+}
+
+.kukui-lq__result p {
+  margin: 0 0 4px;
+}
+
+.kukui-lq__result .kukui-lq__result-q {
+  font-weight: 600;
+  color: var(--color-text-primary);
+}
+
+.kukui-lq__result .kukui-lq__result-status {
+  font-weight: 600;
+  color: var(--color-text-primary);
 }

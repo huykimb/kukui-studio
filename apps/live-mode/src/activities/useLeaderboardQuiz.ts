@@ -14,7 +14,7 @@ import type { LiveRoomHandle } from "@kukui/live";
  */
 const SCORES_KEY = "leaderboard-quiz-scores";
 /**
- * Instructor-owned round settings, read by students: `shuffle`, `pace`
+ * Instructor-owned round settings, read by students: `shuffle`, `showBoard`, `pace`
  * ("auto" = students race the clock; "manual" = the instructor steps everyone
  * through the same questions), and in manual mode `deck` (indices into
  * config.questions) + `index` (the current question).
@@ -79,12 +79,19 @@ export function useLeaderboardQuiz(
   room: LiveRoomHandle,
   role: "instructor" | "student",
   defaultShuffle: boolean,
+  defaultTimeLimit = 60,
 ): {
   ranked: RankedEntry[];
   shuffle: boolean;
   setShuffle(next: boolean): void;
+  /** Whether students see the leaderboard (the instructor always does). Default true. */
+  showBoard: boolean;
+  setShowBoard(next: boolean): void;
   pace: Pace;
   setPace(next: Pace): void;
+  /** Automatic-pace countdown in seconds; the instructor's override, else the config default. */
+  timeLimit: number;
+  setTimeLimit(next: number): void;
   manual: ManualState;
   /** Instructor: publish the question order and reset to the first question. */
   startManual(deck: number[]): void;
@@ -99,8 +106,11 @@ export function useLeaderboardQuiz(
     const sh = settings.get("shuffle");
     const deck = settings.get("deck");
     const index = settings.get("index");
+    const tl = settings.get("timeLimit");
     return {
       shuffle: typeof sh === "boolean" ? sh : defaultShuffle,
+      showBoard: settings.get("showBoard") !== false,
+      timeLimit: typeof tl === "number" && tl >= 1 ? Math.floor(tl) : defaultTimeLimit,
       pace: (settings.get("pace") === "manual" ? "manual" : "auto") as Pace,
       manual: {
         // Peers can send anything: keep only integers.
@@ -109,7 +119,7 @@ export function useLeaderboardQuiz(
       },
     };
   };
-  const [{ shuffle, pace, manual }, setSettingsState] = useState(readSettings);
+  const [{ shuffle, showBoard, pace, timeLimit, manual }, setSettingsState] = useState(readSettings);
 
   useEffect(() => {
     const handler = () => setSettingsState(readSettings());
@@ -132,10 +142,20 @@ export function useLeaderboardQuiz(
       if (role !== "instructor") return;
       room.doc.transact(() => settings.set("shuffle", next));
     },
+    showBoard,
+    setShowBoard: (next) => {
+      if (role !== "instructor") return;
+      room.doc.transact(() => settings.set("showBoard", next));
+    },
     pace,
     setPace: (next) => {
       if (role !== "instructor") return;
       room.doc.transact(() => settings.set("pace", next));
+    },
+    timeLimit,
+    setTimeLimit: (next) => {
+      if (role !== "instructor" || !(next >= 1)) return;
+      room.doc.transact(() => settings.set("timeLimit", Math.floor(next)));
     },
     manual,
     startManual: (deck) => {

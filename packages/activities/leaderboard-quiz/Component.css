@@ -203,3 +203,16 @@
   margin: 0 auto var(--spacing-xl, 20px);
   object-fit: contain;
 }
+
+/* Fill-in-the-blank: the answer input sits inline where the ___ was. */
+.kukui-tq__blank {
+  flex-basis: 100%;
+}
+
+.kukui-tq__blank .kukui-tq__input {
+  display: inline-block;
+  width: 10em;
+  max-width: 100%;
+  margin: 0 var(--spacing-xs, 4px);
+  vertical-align: middle;
+}

@@ -8,7 +8,7 @@ const starter = {
       id: "q1",
       topicId: "general",
       prompt: "Medical term for high blood pressure?",
-      acceptedAnswers: ["hypertension"],
+      blanks: [{ acceptedAnswers: ["hypertension"] }],
     },
   ],
   round: { questionCount: 5, shuffle: true, timeLimitSeconds: 60 },

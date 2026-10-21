@@ -57,9 +57,13 @@ const uiSchema = {
   questions: {
     "ui:title": "Questions",
     items: {
+      "ui:options": { foldFields: { title: "Feedback (optional)", fields: ["feedbackCorrect", "feedbackIncorrect"] } },
       id: { "ui:widget": "hidden" },
-      topicId: f("Topic id", "Must match one of the topic ids above."),
-      prompt: f("Prompt", "What the learner is asked, e.g. the medical term for a heart attack."),
+      topicId: f("Topic", "Pick from the topics you added above.", { "ui:widget": "topicSelect" }),
+      prompt: f(
+        "Prompt",
+        "What the learner is asked, e.g. the medical term for a heart attack. For a fill-in-the-blank, type three underscores (___) where the answer goes, e.g. The ___ pumps blood to the body.",
+      ),
       image: {
         "ui:title": "Image (optional)",
         "ui:options": { foldable: true },
@@ -82,10 +86,19 @@ const uiSchema = {
           licenseUrl: f("License URL", "Optional link to the license text."),
         },
       },
-      acceptedAnswers: f(
-        "Accepted answers",
-        "One per line item. Add synonyms and abbreviations. Matching ignores case and punctuation.",
-      ),
+      acceptedAnswers: { "ui:widget": "hidden" },
+      blanks: {
+        "ui:title": "Answers",
+        "ui:options": { addLabel: "Add another blank", blankCountFrom: "prompt" },
+        "ui:help":
+          "One answer for a normal question. For fill-in-the-blank, type ___ in the prompt for each blank and add one answer here per blank, in order. The question is correct only if every blank is right.",
+        items: {
+          acceptedAnswers: f(
+            "Accepted answers",
+            "Everything that counts as correct for this answer. Add synonyms and abbreviations; matching ignores case and punctuation.",
+          ),
+        },
+      },
       feedbackCorrect: f("Feedback when correct", "Reinforce why the answer fits."),
       feedbackIncorrect: f("Feedback when incorrect", "Redirect the learner."),
     },

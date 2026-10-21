@@ -11,7 +11,7 @@
       "id": "q1",
       "topicId": "cardio",
       "prompt": "Medical term for a heart attack?",
-      "acceptedAnswers": ["myocardial infarction", "MI"],
+      "blanks": [{ "acceptedAnswers": ["myocardial infarction", "MI"] }],
       "feedbackCorrect": "Yes: death of heart muscle from blocked blood flow.",
       "feedbackIncorrect": "Think of the heart muscle (myocardium) dying (infarction)."
     },
@@ -19,14 +19,14 @@
       "id": "q2",
       "topicId": "cardio",
       "prompt": "Medical term for high blood pressure?",
-      "acceptedAnswers": ["hypertension", "HTN"],
+      "blanks": [{ "acceptedAnswers": ["hypertension", "HTN"] }],
       "feedbackIncorrect": "Hyper- means over; tension refers to pressure."
     },
     {
       "id": "q3",
       "topicId": "neuro",
       "prompt": "Structure joining the two cerebral hemispheres?",
-      "acceptedAnswers": ["corpus callosum"],
+      "blanks": [{ "acceptedAnswers": ["corpus callosum"] }],
       "feedbackCorrect": "It is the largest white matter tract in the brain."
     }
   ],

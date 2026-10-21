@@ -57,8 +57,22 @@ export const LeaderboardQuizConfigSchema = z
               })
               .strict()
               .optional(),
-            /** Exact-match answers (after normalization). Authors add synonyms here. */
-            acceptedAnswers: z.array(z.string().min(1)).min(1),
+            /**
+             * Legacy single-answer form (still accepted, hidden in the Studio
+             * form). `blanks` wins when both are set.
+             */
+            // May be empty: the Studio form (which hides this field) fills missing lists with [].
+            acceptedAnswers: z.array(z.string().min(1)).optional(),
+            /**
+             * The answers: one entry per answer box, each with its own accepted
+             * answers (synonyms). A normal question has one entry; a
+             * multi-blank fill-in-the-blanks has one per `___` in the prompt,
+             * in order, and is correct only when every blank is right.
+             */
+            blanks: z
+              .array(z.object({ acceptedAnswers: z.array(z.string().min(1)).min(1) }).strict())
+              .min(1)
+              .optional(),
             feedbackCorrect: z.string().optional(),
             feedbackIncorrect: z.string().optional(),
           })
@@ -98,6 +112,21 @@ export const LeaderboardQuizConfigSchema = z
   .superRefine((cfg, ctx) => {
     const ids = new Set(cfg.topics.map((t) => t.id));
     cfg.questions.forEach((q, i) => {
+      if (!q.acceptedAnswers?.length && !q.blanks?.length) {
+        ctx.addIssue({
+          code: "custom",
+          path: ["questions", i, "acceptedAnswers"],
+          message: "add at least one answer, with at least one accepted answer",
+        });
+      }
+      // One answer works with or without a blank in the prompt; several must match the blanks.
+      if (q.blanks && q.blanks.length > 1 && q.prompt.split(BLANK_RE).length - 1 !== q.blanks.length) {
+        ctx.addIssue({
+          code: "custom",
+          path: ["questions", i, "blanks"],
+          message: `the prompt has ${q.prompt.split(BLANK_RE).length - 1} blank(s) (___) but ${q.blanks.length} blank answer list(s)`,
+        });
+      }
       if (!ids.has(q.topicId)) {
         ctx.addIssue({
           code: "custom",
@@ -110,6 +139,49 @@ export const LeaderboardQuizConfigSchema = z
 
 export type LeaderboardQuizConfig = z.infer<typeof LeaderboardQuizConfigSchema>;
 export type LeaderboardQuizQuestion = LeaderboardQuizConfig["questions"][number];
+
+/** A blank in a prompt is three or more underscores. */
+const BLANK_RE = /_{3,}/g;
+
+/**
+ * Splits a question's prompt around its blanks for inline answer boxes, or
+ * returns null for a plain short-answer prompt. A multi-blank question
+ * (`blanks`) splits around every blank; otherwise only the first blank is an
+ * input.
+ */
+export function promptParts(q: Pick<LeaderboardQuizQuestion, "prompt" | "blanks">): string[] | null {
+  if (q.blanks && q.blanks.length > 1) {
+    const parts = q.prompt.split(BLANK_RE);
+    return parts.length === q.blanks.length + 1 ? parts : null;
+  }
+  const m = /_{3,}/.exec(q.prompt);
+  return m ? [q.prompt.slice(0, m.index), q.prompt.slice(m.index + m[0].length)] : null;
+}
+
+/** The accepted-answer list for each answer box (one for a single-answer question). */
+export function answerLists(q: LeaderboardQuizQuestion): string[][] {
+  return q.blanks?.length ? q.blanks.map((b) => b.acceptedAnswers) : [q.acceptedAnswers ?? []];
+}
+
+/** Correct only if there is an answer for every box and each matches one of its accepted answers. */
+export function isCorrect(q: LeaderboardQuizQuestion, answers: string[]): boolean {
+  return answerLists(q).every((list, i) => {
+    const given = normalizeAnswer(answers[i] ?? "");
+    return given !== "" && list.some((a) => normalizeAnswer(a) === given);
+  });
+}
+
+/** True once every answer box has something typed in. */
+export function isComplete(q: LeaderboardQuizQuestion, answers: string[]): boolean {
+  return answerLists(q).every((_, i) => (answers[i] ?? "").trim() !== "");
+}
+
+/** The answer shown after a miss: the first accepted answer of each box. */
+export function answerText(q: LeaderboardQuizQuestion): string {
+  return answerLists(q)
+    .map((l) => l[0])
+    .join(", ");
+}
 
 /**
  * Same normalization on both sides of the comparison: lowercase, strip
