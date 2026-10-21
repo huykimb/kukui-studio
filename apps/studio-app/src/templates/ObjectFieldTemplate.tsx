@@ -62,18 +62,20 @@ export function ObjectFieldTemplate(props: ObjectFieldTemplateProps) {
   // `ui:options: { advanced: false }`.
   const fieldName = idSchema?.$id?.split("_").pop() ?? "";
   const uiOptions = ((uiSchema ?? {}) as Record<string, unknown>)["ui:options"] as
-    | { advanced?: boolean }
+    | { advanced?: boolean; foldable?: boolean; compact?: boolean }
     | undefined;
   const isAdvanced =
     uiOptions?.advanced === true ||
     (uiOptions?.advanced !== false && ADVANCED_BY_DEFAULT.has(fieldName));
+  // `foldable: true` folds like an advanced section but without the tag.
+  const isFoldable = isAdvanced || uiOptions?.foldable === true;
 
-  if (isAdvanced) {
+  if (isFoldable) {
     return (
-      <details className="ks-object ks-object--advanced">
+      <details className={`ks-object ks-object--advanced${isAdvanced ? "" : " ks-object--foldable"}${uiOptions?.compact ? " ks-object--compact" : ""}`}>
         <summary className="ks-object__title ks-object__title--summary">
           {title ?? fieldName}
-          <span className="ks-object__advanced-tag">Advanced</span>
+          {isAdvanced ? <span className="ks-object__advanced-tag">Advanced</span> : null}
         </summary>
         {description ? <p className="ks-object__desc">{description}</p> : null}
         <div className="ks-object__body">

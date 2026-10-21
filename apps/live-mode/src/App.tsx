@@ -81,7 +81,12 @@ function fromBase64Url(input: string): string {
  */
 function readPreloadedConfig(): unknown | null {
   if (typeof window === "undefined") return null;
-  const raw = new URLSearchParams(window.location.search).get("config");
+  // The config rides in the #hash (browsers never send it to the server, so a
+  // large config with images can't trip the 431 header limit); the query
+  // string is still accepted for old links.
+  const raw =
+    new URLSearchParams(window.location.hash.slice(1)).get("config") ??
+    new URLSearchParams(window.location.search).get("config");
   if (!raw) return null;
   try {
     return JSON.parse(fromBase64Url(raw));

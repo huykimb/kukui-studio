@@ -13,6 +13,13 @@ import type { LiveRoomHandle } from "@kukui/live";
  * participantId is the Live session key.
  */
 const SCORES_KEY = "leaderboard-quiz-scores";
+/**
+ * Instructor-owned round settings, read by students: `shuffle`, `pace`
+ * ("auto" = students race the clock; "manual" = the instructor steps everyone
+ * through the same questions), and in manual mode `deck` (indices into
+ * config.questions) + `index` (the current question).
+ */
+const SETTINGS_KEY = "leaderboard-quiz-settings";
 
 export type LeaderboardEntry = {
   displayName: string;
@@ -21,6 +28,9 @@ export type LeaderboardEntry = {
   /** Epoch ms when the student finished, or null while still playing. */
   finishedAt: number | null;
 };
+
+export type Pace = "auto" | "manual";
+export type ManualState = { deck: number[]; index: number };
 
 export type RankedEntry = LeaderboardEntry & { id: string; rank: number };
 
@@ -68,13 +78,45 @@ function read(map: Y.Map<LeaderboardEntry>): RankedEntry[] {
 export function useLeaderboardQuiz(
   room: LiveRoomHandle,
   role: "instructor" | "student",
+  defaultShuffle: boolean,
 ): {
   ranked: RankedEntry[];
+  shuffle: boolean;
+  setShuffle(next: boolean): void;
+  pace: Pace;
+  setPace(next: Pace): void;
+  manual: ManualState;
+  /** Instructor: publish the question order and reset to the first question. */
+  startManual(deck: number[]): void;
+  setManualIndex(next: number): void;
   report(entry: LeaderboardEntry): void;
   clearAll(): void;
 } {
   const map = room.doc.getMap<LeaderboardEntry>(SCORES_KEY);
   const [ranked, setRanked] = useState(() => read(map));
+  const settings = room.doc.getMap<unknown>(SETTINGS_KEY);
+  const readSettings = () => {
+    const sh = settings.get("shuffle");
+    const deck = settings.get("deck");
+    const index = settings.get("index");
+    return {
+      shuffle: typeof sh === "boolean" ? sh : defaultShuffle,
+      pace: (settings.get("pace") === "manual" ? "manual" : "auto") as Pace,
+      manual: {
+        // Peers can send anything: keep only integers.
+        deck: Array.isArray(deck) ? deck.filter((n): n is number => Number.isInteger(n)) : [],
+        index: typeof index === "number" && index >= 0 ? Math.floor(index) : 0,
+      },
+    };
+  };
+  const [{ shuffle, pace, manual }, setSettingsState] = useState(readSettings);
+
+  useEffect(() => {
+    const handler = () => setSettingsState(readSettings());
+    settings.observe(handler);
+    return () => settings.unobserve(handler);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [settings, defaultShuffle]);
 
   useEffect(() => {
     const handler = () => setRanked(read(map));
@@ -84,6 +126,29 @@ export function useLeaderboardQuiz(
 
   return {
     ranked,
+    shuffle,
+    // Local speed-bumps only, same as clearAll.
+    setShuffle: (next) => {
+      if (role !== "instructor") return;
+      room.doc.transact(() => settings.set("shuffle", next));
+    },
+    pace,
+    setPace: (next) => {
+      if (role !== "instructor") return;
+      room.doc.transact(() => settings.set("pace", next));
+    },
+    manual,
+    startManual: (deck) => {
+      if (role !== "instructor") return;
+      room.doc.transact(() => {
+        settings.set("deck", deck);
+        settings.set("index", 0);
+      });
+    },
+    setManualIndex: (next) => {
+      if (role !== "instructor") return;
+      room.doc.transact(() => settings.set("index", next));
+    },
     report: (entry) => {
       room.doc.transact(() => map.set(room.participantId, entry));
     },

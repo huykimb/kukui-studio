@@ -5,9 +5,10 @@ import {
   type LeaderboardQuizConfig,
   type LeaderboardQuizQuestion,
 } from "@kukui/activities/leaderboard-quiz/schema";
+import { ImageCredit } from "@kukui/activities/leaderboard-quiz/Component";
 import type { LiveActivityManifest, LiveActivityProps } from "./types.js";
 import { usePhase } from "../usePhase.js";
-import { useLeaderboardQuiz, type RankedEntry } from "./useLeaderboardQuiz.js";
+import { useLeaderboardQuiz, type Pace, type RankedEntry } from "./useLeaderboardQuiz.js";
 import "./LiveCommon.css";
 import "./LeaderboardQuizLive.css";
 
@@ -47,12 +48,19 @@ function Board({ ranked, myId, limit }: { ranked: RankedEntry[]; myId: string; l
 
 export function LeaderboardQuizLive({ room, presence, role, config, onLeave }: LeaderboardQuizLiveProps) {
   const { phase, setPhase } = usePhase(room, role);
-  const { ranked, report, clearAll } = useLeaderboardQuiz(room, role);
+  const { ranked, shuffle, setShuffle, pace, setPace, manual, startManual, setManualIndex, report, clearAll } =
+    useLeaderboardQuiz(
+      room,
+      role,
+      config.round.shuffle ?? true,
+    );
   const myName = presence.get(room.participantId)?.name ?? "Student";
 
   const [status, setStatus] = useState<Status>("idle");
   const [deck, setDeck] = useState<LeaderboardQuizQuestion[]>([]);
   const [idx, setIdx] = useState(0);
+  // Pace is locked in when the round starts; manual = the instructor sets the current question.
+  const [mode, setMode] = useState<Pace>("auto");
   const [correct, setCorrect] = useState(0);
   const [answer, setAnswer] = useState("");
   const [fb, setFb] = useState<{ ok: boolean; q: LeaderboardQuizQuestion } | null>(null);
@@ -63,9 +71,13 @@ export function LeaderboardQuizLive({ room, presence, role, config, onLeave }: L
   const elapsed = Math.min(now - startedAt.current, limitMs);
   const left = Math.max(0, Math.ceil((limitMs - elapsed) / 1000));
 
+  // Manual rounds have no countdown, so the clock isn't capped there.
+  const elapsedNow = () => (mode === "manual" ? Date.now() - startedAt.current : Math.min(Date.now() - startedAt.current, limitMs));
+  const curIdx = mode === "manual" ? Math.min(manual.index, deck.length - 1) : idx;
+
   const finish = (finalCorrect: number) => {
     if (status !== "playing") return;
-    const ms = Math.min(Date.now() - startedAt.current, limitMs);
+    const ms = elapsedNow();
     report({
       displayName: myName,
       score: finalCorrect * config.pointsPerCorrect,
@@ -81,9 +93,14 @@ export function LeaderboardQuizLive({ room, presence, role, config, onLeave }: L
   useEffect(() => {
     if (role !== "student") return;
     if (phase === "question" && status === "idle") {
-      const d = config.questions.slice();
-      if (config.round.shuffle ?? true) d.sort(() => Math.random() - 0.5);
-      setDeck(d.slice(0, config.round.questionCount));
+      setMode(pace);
+      if (pace === "manual") {
+        setDeck(manual.deck.map((i) => config.questions[i]).filter((x): x is LeaderboardQuizQuestion => !!x));
+      } else {
+        const d = config.questions.slice();
+        if (shuffle) d.sort(() => Math.random() - 0.5);
+        setDeck(d.slice(0, config.round.questionCount));
+      }
       setIdx(0);
       setCorrect(0);
       setAnswer("");
@@ -107,13 +124,13 @@ export function LeaderboardQuizLive({ room, presence, role, config, onLeave }: L
     return () => clearInterval(id);
   }, [status]);
   useEffect(() => {
-    if (status === "playing" && left <= 0) finish(correct);
+    if (status === "playing" && mode === "auto" && left <= 0) finish(correct);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [left, status]);
 
   // After feedback, advance or finish.
   useEffect(() => {
-    if (!fb) return;
+    if (!fb || mode === "manual") return;
     const id = setTimeout(() => {
       setFb(null);
       setAnswer("");
@@ -124,9 +141,15 @@ export function LeaderboardQuizLive({ room, presence, role, config, onLeave }: L
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [fb]);
 
+  // Manual pace: a new question from the instructor clears the previous answer.
+  useEffect(() => {
+    setFb(null);
+    setAnswer("");
+  }, [manual.index]);
+
   const submit = (e: FormEvent) => {
     e.preventDefault();
-    const q = deck[idx];
+    const q = deck[curIdx];
     if (!q || fb || answer.trim() === "") return;
     const ok = q.acceptedAnswers.some((a) => normalizeAnswer(a) === normalizeAnswer(answer));
     const next = correct + (ok ? 1 : 0);
@@ -136,7 +159,7 @@ export function LeaderboardQuizLive({ room, presence, role, config, onLeave }: L
     report({
       displayName: myName,
       score: next * config.pointsPerCorrect,
-      elapsedMs: Math.min(Date.now() - startedAt.current, limitMs),
+      elapsedMs: elapsedNow(),
       finishedAt: null,
     });
   };
@@ -156,6 +179,18 @@ export function LeaderboardQuizLive({ room, presence, role, config, onLeave }: L
       clearAll();
       setPhase("lobby");
     };
+    const startRound = () => {
+      if (pace === "manual") {
+        // Everyone gets the same questions in the same order; publish it before opening the round.
+        const order = config.questions.map((_, i) => i);
+        if (shuffle) order.sort(() => Math.random() - 0.5);
+        startManual(order.slice(0, config.round.questionCount));
+      }
+      setPhase("question");
+    };
+    const manualPacing = pace === "manual" && phase === "question";
+    const current = manualPacing ? config.questions[manual.deck[manual.index] ?? -1] : undefined;
+    const lastQuestion = manual.index + 1 >= manual.deck.length;
     return (
       <div className="live-shell">
         <article className="live-card live-card--wide">
@@ -163,15 +198,54 @@ export function LeaderboardQuizLive({ room, presence, role, config, onLeave }: L
           <p className="live-subtitle">
             {students} student{students === 1 ? "" : "s"} connected · {finished} finished
           </p>
+          {current ? (
+            <section className="kukui-live-prompt">
+              <p>
+                Question {manual.index + 1} of {manual.deck.length}: {current.prompt}
+              </p>
+              {current.image ? (
+                <img className="kukui-lq__image" src={current.image.src} alt={current.image.alt} draggable={false} />
+              ) : null}
+            </section>
+          ) : null}
           <Board ranked={ranked} myId={room.participantId} />
+          <label className="kukui-lq__toggle">
+            Question pace
+            <select value={pace} disabled={phase !== "lobby"} onChange={(e) => setPace(e.target.value as Pace)}>
+              <option value="auto">Automatic</option>
+              <option value="manual">Manual</option>
+            </select>
+          </label>
+          <label className="kukui-lq__toggle">
+            <input
+              type="checkbox"
+              checked={shuffle}
+              disabled={phase !== "lobby"}
+              onChange={(e) => setShuffle(e.target.checked)}
+            />
+            Shuffle questions
+          </label>
           <div className="kukui-live-controls" aria-label="Leaderboard Quiz controls">
             {phase === "lobby" ? (
-              <button type="button" className="live-btn live-btn--primary" onClick={() => setPhase("question")}>
+              <button type="button" className="live-btn live-btn--primary" onClick={startRound}>
                 Start round
               </button>
             ) : null}
+            {manualPacing ? (
+              <button
+                type="button"
+                className="live-btn live-btn--primary"
+                onClick={() => (lastQuestion ? setPhase("reveal") : setManualIndex(manual.index + 1))}
+              >
+                {lastQuestion ? "Finish & show results" : "Next question"}
+              </button>
+            ) : null}
             {phase === "question" ? (
-              <button type="button" className="live-btn live-btn--primary" onClick={() => setPhase("reveal")}>
+              <button
+                type="button"
+                className={manualPacing ? "live-btn live-btn--ghost" : "live-btn live-btn--primary"}
+                onClick={() => setPhase("reveal")}
+              >
                 End round &amp; show results
               </button>
             ) : null}
@@ -194,7 +268,7 @@ export function LeaderboardQuizLive({ room, presence, role, config, onLeave }: L
     );
   }
 
-  const q = deck[idx];
+  const q = deck[curIdx];
   const mine = ranked.find((r) => r.id === room.participantId);
 
   return (
@@ -212,13 +286,14 @@ export function LeaderboardQuizLive({ room, presence, role, config, onLeave }: L
           <>
             <div className="kukui-lq__bar">
               <span>
-                Question {idx + 1} of {deck.length}
+                Question {curIdx + 1} of {deck.length}
               </span>
               <span>{correct * config.pointsPerCorrect} pts</span>
-              <span role="timer">{left}s left</span>
+              {mode === "auto" ? <span role="timer">{left}s left</span> : null}
             </div>
             <section className="kukui-live-prompt">
               <p>{q.prompt}</p>
+              {q.image ? <img className="kukui-lq__image" src={q.image.src} alt={q.image.alt} draggable={false} /> : null}
             </section>
             <form className="kukui-lq__form" onSubmit={submit}>
               <input
@@ -248,6 +323,7 @@ export function LeaderboardQuizLive({ room, presence, role, config, onLeave }: L
                   : `✗ Incorrect. Answer: ${fb.q.acceptedAnswers[0]}. ${fb.q.feedbackIncorrect ?? ""}`
                 : ""}
             </p>
+            {q.image?.attribution ? <ImageCredit credit={q.image.attribution} className="kukui-lq__credit" /> : null}
           </>
         ) : null}
 

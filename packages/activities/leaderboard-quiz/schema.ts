@@ -1,5 +1,5 @@
 import { z } from "zod";
-import { ScoringSchema, AppearanceSchema } from "@kukui/schemas/shared";
+import { ScoringSchema, AppearanceSchema, SAFE_MEDIA_URL } from "@kukui/schemas/shared";
 
 const versionRe = /^\d+\.\d+(\.\d+)?$/;
 
@@ -34,9 +34,29 @@ export const LeaderboardQuizConfigSchema = z
       .array(
         z
           .object({
-            id: z.string().min(1),
+            /** Optional; nothing reads it. Hidden in the Studio form. */
+            id: z.string().min(1).optional(),
             topicId: z.string().min(1),
             prompt: z.string().min(1),
+            /** Optional image shown with the prompt. Alt text is required for accessibility. */
+            image: z
+              .object({
+                src: SAFE_MEDIA_URL,
+                alt: z.string().min(1),
+                /** Optional credit, shown as a footer line while this question is on screen. */
+                attribution: z
+                  .object({
+                    author: z.string().min(1),
+                    authorUrl: z.string().url().optional(),
+                    sourceUrl: z.string().url().optional(),
+                    license: z.string().min(1).optional(),
+                    licenseUrl: z.string().url().optional(),
+                  })
+                  .strict()
+                  .optional(),
+              })
+              .strict()
+              .optional(),
             /** Exact-match answers (after normalization). Authors add synonyms here. */
             acceptedAnswers: z.array(z.string().min(1)).min(1),
             feedbackCorrect: z.string().optional(),

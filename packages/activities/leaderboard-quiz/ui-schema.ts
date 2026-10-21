@@ -57,9 +57,31 @@ const uiSchema = {
   questions: {
     "ui:title": "Questions",
     items: {
-      id: f("Question id"),
+      id: { "ui:widget": "hidden" },
       topicId: f("Topic id", "Must match one of the topic ids above."),
       prompt: f("Prompt", "What the learner is asked, e.g. the medical term for a heart attack."),
+      image: {
+        "ui:title": "Image (optional)",
+        "ui:options": { foldable: true },
+        src: f("Image", "Paste a link or upload a file. Uploaded files are saved inside the activity.", {
+          "ui:widget": "file",
+          "ui:options": { accept: "image/*", maxSizeMb: 5, kind: "image", maxDimension: 800 },
+        }),
+        alt: f(
+          "Alt text (required)",
+          "Describes the image for screen-reader users. Don't give away the answer unless the image is only decorative.",
+        ),
+        attribution: {
+          "ui:title": "Image credit (optional)",
+          "ui:options": { foldable: true, compact: true },
+          "ui:help": "Shows as a small credit line at the bottom while this question is on screen.",
+          author: f("Author", "Name of the photographer or source."),
+          authorUrl: f("Author URL", "Optional link to the author's page."),
+          sourceUrl: f("Source URL", "Optional link to the original image page."),
+          license: f("License", "Short license name, for example \"CC0\" or \"CC BY 4.0\"."),
+          licenseUrl: f("License URL", "Optional link to the license text."),
+        },
+      },
       acceptedAnswers: f(
         "Accepted answers",
         "One per line item. Add synonyms and abbreviations. Matching ignores case and punctuation.",

@@ -3,6 +3,7 @@ import type { ActivityManifest } from "@kukui/activities/types";
 import { LeaderboardQuizConfigSchema } from "./schema.js";
 import uiSchema from "./ui-schema.js";
 import starter from "./starter.js";
+import { Icon } from "./icon.js";
 import { label, description, bloom, live } from "./meta.js";
 
 // Component's typed props (ActivityProps<LeaderboardQuizConfig>) are stricter than
@@ -21,6 +22,7 @@ export const activity: ActivityManifest<"leaderboard-quiz"> = {
   Component,
   uiSchema,
   starter,
+  Icon,
   label,
   description,
   bloom,

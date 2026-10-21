@@ -90,3 +90,68 @@
   font-size: var(--font-size-meta, 13px);
   color: var(--color-text-secondary);
 }
+
+.kukui-lq__image {
+  display: block;
+  max-width: 100%;
+  max-height: 280px;
+  margin: 0 auto var(--spacing-xl, 20px);
+  object-fit: contain;
+}
+
+.kukui-lq__credit {
+  margin: var(--spacing-lg, 16px) 0 0;
+  padding-top: var(--spacing-sm, 8px);
+  border-top: 1px solid color-mix(in oklab, var(--color-border, #d1d7df) 50%, transparent);
+  font-size: var(--font-size-micro, 12px);
+  line-height: 1.5;
+  color: var(--color-text-muted, #6e6e76);
+}
+
+.kukui-lq__credit a {
+  color: inherit;
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+
+/* Instructor toggle; 44px tall for the tap target, disabled once the round starts. */
+.kukui-lq__toggle {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-sm, 8px);
+  min-height: 44px;
+  margin-top: var(--spacing-lg, 16px);
+  color: var(--color-text-primary);
+}
+
+.kukui-lq__toggle + .kukui-lq__toggle {
+  margin-top: 0;
+}
+
+.kukui-lq__toggle input {
+  width: 20px;
+  height: 20px;
+}
+
+/* Boxed dropdown, same field styling as the answer input. */
+.kukui-lq__toggle select {
+  min-height: 44px;
+  max-width: 100%;
+  padding: 4px 10px;
+  background: var(--color-surface);
+  border: 2px solid var(--color-border);
+  border-radius: var(--radius-md, 8px);
+  font-size: var(--font-size-answer, 15px);
+  color: var(--color-text-primary);
+  cursor: pointer;
+}
+
+.kukui-lq__toggle select:focus-visible {
+  outline: 2px solid var(--color-primary);
+  outline-offset: 2px;
+}
+
+.kukui-lq__toggle select:disabled {
+  cursor: not-allowed;
+  opacity: 0.6;
+}

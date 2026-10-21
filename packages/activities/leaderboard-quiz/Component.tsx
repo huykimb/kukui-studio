@@ -226,6 +226,7 @@ export function Component({ config, onSubmit, headingLevel = 1 }: ActivityProps<
               <span role="timer">{Math.max(left, 0)}s left</span>
             </div>
             <p className="kukui-tq__prompt">{q.prompt}</p>
+            {q.image ? <img className="kukui-tq__image" src={q.image.src} alt={q.image.alt} draggable={false} /> : null}
             <form className="kukui-tq__form" onSubmit={submitAnswer}>
               <input
                 className={["kukui-tq__input", result ? (result.ok ? "is-correct" : "is-incorrect") : ""]
@@ -286,6 +287,29 @@ export function Component({ config, onSubmit, headingLevel = 1 }: ActivityProps<
         ) : null}
       </article>
     </div>
+  );
+}
+
+type Credit = NonNullable<NonNullable<LeaderboardQuizQuestion["image"]>["attribution"]>;
+
+const link = (href: string | undefined, text: string) =>
+  href ? (
+    <a href={href} target="_blank" rel="noopener noreferrer">
+      {text}
+    </a>
+  ) : (
+    text
+  );
+
+/** Footer credit line for a question image; shared with the Live variant. */
+export function ImageCredit({ credit, className }: { credit: Credit; className: string }) {
+  const { author, authorUrl, sourceUrl, license, licenseUrl } = credit;
+  return (
+    <footer className={className}>
+      Image by {link(authorUrl, author)}
+      {sourceUrl ? <> · {link(sourceUrl, "View original")}</> : null}
+      {license ? <> · {link(licenseUrl, license)}</> : null}
+    </footer>
   );
 }
 
