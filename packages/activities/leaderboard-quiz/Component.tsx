@@ -157,7 +157,8 @@ export function Component({ config, onSubmit, headingLevel = 1 }: ActivityProps<
   const toggleTopic = (id: string) =>
     setPicked((s) => {
       const n = new Set(s);
-      n.has(id) ? n.delete(id) : n.add(id);
+      if (n.has(id)) n.delete(id);
+      else n.add(id);
       return n;
     });
 
@@ -189,7 +190,6 @@ export function Component({ config, onSubmit, headingLevel = 1 }: ActivityProps<
           autoCorrect="off"
           autoCapitalize="off"
           spellCheck={false}
-          // eslint-disable-next-line jsx-a11y/no-autofocus
           autoFocus={i === 0}
         />
       ))

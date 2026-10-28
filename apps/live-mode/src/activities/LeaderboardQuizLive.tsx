@@ -373,7 +373,6 @@ export function LeaderboardQuizLive({
           autoCorrect="off"
           autoCapitalize="off"
           spellCheck={false}
-          // eslint-disable-next-line jsx-a11y/no-autofocus
           autoFocus={i === 0}
           form={formId}
         />
