@@ -53,8 +53,15 @@
 .kukui-lq__feedback {
   min-height: 3em;
   margin: var(--spacing-md, 12px) 0 var(--spacing-lg, 16px);
-  font-size: var(--font-size-caption, 14px);
+  font-size: var(--font-size-body, 16px);
   color: var(--color-text-secondary);
+  white-space: pre-line;
+}
+
+.kukui-lq__feedback.is-correct,
+.kukui-lq__feedback.is-incorrect {
+  font-weight: 600;
+  color: var(--color-text-primary);
 }
 
 .kukui-lq__board {

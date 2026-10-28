@@ -24,7 +24,7 @@ import { useLeaderboardQuiz, type Pace, type RankedEntry } from "./useLeaderboar
 import "./LiveCommon.css";
 import "./LeaderboardQuizLive.css";
 
-const FEEDBACK_MS = 1200;
+const FEEDBACK_MS = 2500;
 
 type Status = "idle" | "playing" | "finished";
 
@@ -438,14 +438,6 @@ export function LeaderboardQuizLive({
                 Submit
               </button>
             </form>
-            {/* Always rendered so feedback never reflows the card. */}
-            <p className="kukui-lq__feedback" role="status" aria-live="polite">
-              {fb
-                ? fb.ok
-                  ? `✓ Correct. ${fb.q.feedbackCorrect ?? ""}`
-                  : `✗ Incorrect. Answer: ${answerText(fb.q)}. ${fb.q.feedbackIncorrect ?? ""}`
-                : ""}
-            </p>
             {q.image?.attribution ? (
               <ImageCredit credit={q.image.attribution} className="kukui-lq__credit" />
             ) : null}
@@ -487,6 +479,27 @@ export function LeaderboardQuizLive({
               })}
             </ol>
           </section>
+        ) : null}
+
+        {status === "playing" && q ? (
+          <>
+            {/* Always rendered so feedback never reflows the card. */}
+            <p
+              className={
+                fb
+                  ? `kukui-lq__feedback ${fb.ok ? "is-correct" : "is-incorrect"}`
+                  : "kukui-lq__feedback"
+              }
+              role="status"
+              aria-live="polite"
+            >
+              {fb
+                ? fb.ok
+                  ? `✓ Correct.\n${fb.q.feedbackCorrect ?? ""}`
+                  : `✗ Incorrect. Answer: ${answerText(fb.q)}\n${fb.q.feedbackIncorrect ?? ""}`
+                : ""}
+            </p>
+          </>
         ) : null}
 
         {showBoard ? (
