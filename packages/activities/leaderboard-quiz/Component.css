@@ -60,6 +60,21 @@
   color: var(--color-text-secondary, #49515b);
 }
 
+.kukui-tq__check {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-sm, 8px);
+  min-height: 44px;
+  margin: 0 0 var(--spacing-md, 12px);
+  font-size: var(--font-size-meta, 13px);
+  color: var(--color-text-secondary, #49515b);
+}
+
+.kukui-tq__check input {
+  width: 20px;
+  height: 20px;
+}
+
 .kukui-tq__bar {
   display: flex;
   justify-content: space-between;

@@ -39,15 +39,31 @@ describe("LeaderboardQuiz", () => {
     await user.type(screen.getByRole("textbox", { name: /your answer/i }), " m.i. ");
     await user.click(screen.getByRole("button", { name: /submit/i }));
     expect(screen.getByRole("status")).toHaveTextContent(/correct/i);
+    // Feedback waits for the learner; it does not auto-advance.
     await act(async () => {
-      vi.advanceTimersByTime(1300);
+      vi.advanceTimersByTime(5000);
     });
+    expect(onSubmit).not.toHaveBeenCalled();
+    await user.click(screen.getByRole("button", { name: /next/i }));
     expect(onSubmit).toHaveBeenCalledTimes(1);
     expect(onSubmit.mock.calls[0]?.[0]).toMatchObject({ raw: 10, max: 10, success: true });
     expect(JSON.parse(localStorage.getItem("leaderboardquiz:Leaderboard Quiz")!)).toMatchObject({
       bestScore: 10,
       attempts: 1,
     });
+  });
+
+  it("lets the learner turn the time limit off", async () => {
+    const user = userEvent.setup({ advanceTimers: vi.advanceTimersByTime });
+    const onSubmit = vi.fn();
+    render(<Component config={cfg} onSubmit={onSubmit} />);
+    await user.click(screen.getByRole("checkbox", { name: /no time limit/i }));
+    await user.click(screen.getByRole("button", { name: /start/i }));
+    expect(screen.queryByRole("timer")).not.toBeInTheDocument();
+    await act(async () => {
+      vi.advanceTimersByTime(60_000);
+    });
+    expect(onSubmit).not.toHaveBeenCalled();
   });
 
   it("submits when the timer runs out", async () => {

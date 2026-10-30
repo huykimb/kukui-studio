@@ -10,10 +10,26 @@ const versionRe = /^\d+\.\d+(\.\d+)?$/;
  * anatomical structures accurately, under time pressure, across a set of
  * instructor-defined topics."
  *
- * Engine (async, single-learner) shape only. Live leaderboard, typo
- * tolerance, and the accommodations time multiplier are designed in
- * docs/superpowers/specs/2026-10-7-leaderboard-quiz-design.md but not built yet.
+ * Covers the engine (async, single-learner) and Live shapes. Typo
+ * tolerance and the accommodations time multiplier are designed in
+ * docs/superpowers/specs/2026-10-07-leaderboard-quiz-design.md.
  */
+/** Credit links land in an href, so only http(s) is allowed (no javascript: / data:). */
+const HTTP_URL = z
+  .string()
+  .url()
+  .refine((v) => /^https?:\/\//i.test(v), { message: "Must be an http(s) URL." });
+
+/** Fisher-Yates; returns a new array. */
+export function shuffled<T>(items: readonly T[]): T[] {
+  const a = items.slice();
+  for (let i = a.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [a[i], a[j]] = [a[j]!, a[i]!];
+  }
+  return a;
+}
+
 export const LeaderboardQuizConfigSchema = z
   .object({
     _comment: z.string().optional(),
@@ -43,14 +59,14 @@ export const LeaderboardQuizConfigSchema = z
               .object({
                 src: SAFE_MEDIA_URL,
                 alt: z.string().min(1),
-                /** Optional credit, shown as a footer line while this question is on screen. */
+                /** Optional credit, listed in the activity footer with every other question's credit. */
                 attribution: z
                   .object({
                     author: z.string().min(1),
-                    authorUrl: z.string().url().optional(),
-                    sourceUrl: z.string().url().optional(),
+                    authorUrl: HTTP_URL.optional(),
+                    sourceUrl: HTTP_URL.optional(),
                     license: z.string().min(1).optional(),
-                    licenseUrl: z.string().url().optional(),
+                    licenseUrl: HTTP_URL.optional(),
                   })
                   .strict()
                   .optional(),
@@ -84,9 +100,9 @@ export const LeaderboardQuizConfigSchema = z
         /** Questions drawn per attempt (capped at the size of the selected pool). */
         questionCount: z.number().int().min(1),
         shuffle: z.boolean().optional(),
-        topicSelection: z.enum(["author-fixed", "learner-choice"]).optional(),
-        /** One countdown for the whole round. */
-        timeLimitSeconds: z.number().int().min(1),
+        topicSelection: z.enum(["all-topics", "learner-picks"]).optional(),
+        /** One countdown for the whole round; no limit when unset. Learners can also turn it off. */
+        timeLimitSeconds: z.number().int().min(1).optional(),
       })
       .strict(),
     /** Flat award per correct answer; no partial credit. */

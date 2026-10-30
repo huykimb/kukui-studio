@@ -14,6 +14,7 @@ import {
   isComplete,
   isCorrect,
   promptParts,
+  shuffled,
   type LeaderboardQuizConfig,
   type LeaderboardQuizQuestion,
 } from "@kukui/activities/leaderboard-quiz/schema";
@@ -23,8 +24,6 @@ import { usePhase } from "../usePhase.js";
 import { useLeaderboardQuiz, type Pace, type RankedEntry } from "./useLeaderboardQuiz.js";
 import "./LiveCommon.css";
 import "./LeaderboardQuizLive.css";
-
-const FEEDBACK_MS = 2500;
 
 type Status = "idle" | "playing" | "finished";
 
@@ -81,7 +80,12 @@ export function LeaderboardQuizLive({
     setManualIndex,
     report,
     clearAll,
-  } = useLeaderboardQuiz(room, role, config.round.shuffle ?? true, config.round.timeLimitSeconds);
+  } = useLeaderboardQuiz(
+    room,
+    role,
+    config.round.shuffle ?? true,
+    config.round.timeLimitSeconds ?? 60,
+  );
   const formId = useId();
   // A student can hide the board for themselves, but only when the instructor has it enabled.
   const [hideBoard, setHideBoard] = useState(false);
@@ -138,8 +142,7 @@ export function LeaderboardQuizLive({
             .filter((x): x is LeaderboardQuizQuestion => !!x),
         );
       } else {
-        const d = config.questions.slice();
-        if (shuffle) d.sort(() => Math.random() - 0.5);
+        const d = shuffle ? shuffled(config.questions) : config.questions;
         setDeck(d.slice(0, config.round.questionCount));
       }
       setIdx(0);
@@ -170,18 +173,13 @@ export function LeaderboardQuizLive({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [left, status]);
 
-  // After feedback, advance or finish.
-  useEffect(() => {
-    if (!fb || mode === "manual") return;
-    const id = setTimeout(() => {
-      setFb(null);
-      setAnswers([]);
-      if (idx + 1 >= deck.length) finish(correct);
-      else setIdx(idx + 1);
-    }, FEEDBACK_MS);
-    return () => clearTimeout(id);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [fb]);
+  // Auto pace: feedback stays until the learner presses Next (or Enter), so screen readers can finish it.
+  const advance = () => {
+    setFb(null);
+    setAnswers([]);
+    if (idx + 1 >= deck.length) finish(correct);
+    else setIdx(idx + 1);
+  };
 
   // Manual pace: a new question from the instructor clears the previous answer.
   useEffect(() => {
@@ -192,6 +190,7 @@ export function LeaderboardQuizLive({
   const submit = (e: FormEvent) => {
     e.preventDefault();
     const q = deck[curIdx];
+    if (fb && mode === "auto") return advance();
     if (!q || fb || !isComplete(q, answers)) return;
     const ok = isCorrect(q, answers);
     const next = correct + (ok ? 1 : 0);
@@ -226,8 +225,7 @@ export function LeaderboardQuizLive({
       if (pace === "manual") {
         // Everyone gets the same questions in the same order; publish it before opening the round.
         const order = config.questions.map((_, i) => i);
-        if (shuffle) order.sort(() => Math.random() - 0.5);
-        startManual(order.slice(0, config.round.questionCount));
+        startManual((shuffle ? shuffled(order) : order).slice(0, config.round.questionCount));
       }
       setPhase("question");
     };
@@ -432,9 +430,9 @@ export function LeaderboardQuizLive({
               <button
                 type="submit"
                 className="live-btn live-btn--primary"
-                disabled={!!fb || !isComplete(q, answers)}
+                disabled={(!!fb && mode !== "auto") || (!fb && !isComplete(q, answers))}
               >
-                Submit
+                {fb && mode === "auto" ? "Next" : "Submit"}
               </button>
             </form>
             {q.image?.attribution ? (

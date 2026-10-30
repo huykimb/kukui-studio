@@ -613,6 +613,12 @@ function LiveTestLauncher({
               {copied === "instructor" ? "Copied!" : "Copy instructor URL"}
             </button>
           </div>
+          {!adminKey ? (
+            <p className="kukui-studio-live-launch__warn">
+              No admin key set. Anyone with the student URL could claim host. Set one under{" "}
+              <em>Live session settings</em>.
+            </p>
+          ) : null}
         </div>
         <div className="kukui-studio-live-launch__col">
           <h4>As student</h4>

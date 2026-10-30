@@ -13,6 +13,7 @@ const starter = {
   ],
   round: { questionCount: 5, shuffle: true, timeLimitSeconds: 60 },
   pointsPerCorrect: 10,
+  appearance: { theme: "auto" },
   live: { signaling: "nostr" },
 };
 

@@ -73,7 +73,7 @@ const uiSchema = {
         }),
         alt: f(
           "Alt text (required)",
-          "Describes the image for screen-reader users. Don't give away the answer unless the image is only decorative.",
+          "Describes the image for screen-reader users.",
         ),
         attribution: {
           "ui:title": "Image credit (optional)",
@@ -109,14 +109,14 @@ const uiSchema = {
     shuffle: f("Shuffle questions"),
     topicSelection: f(
       "Topic menu",
-      "learner-choice shows a topic picker; author-fixed uses every topic.",
+      "learner-picks lets learners choose which topics to practice; all-topics always uses every topic.",
     ),
-    timeLimitSeconds: f("Time limit (seconds)", "One countdown for the whole round."),
+    timeLimitSeconds: f("Time limit (seconds)", "One countdown for the whole round. Leave empty for no limit."),
   },
   pointsPerCorrect: f("Points per correct answer"),
   strings: f(
     "Custom text (optional)",
-    "Override built-in wording. Keys: start, submit, timesUp, savedNotice, clearRecord, playAgain.",
+    "Override built-in wording. Keys: start, submit, next, noTimeLimit, timesUp, savedNotice, clearRecord, playAgain, questionOf, points, correct, incorrect, answerLabel, secondsLeft, bestLine, noRecord, attempt, attempts.",
   ),
   live: LIVE_SETTINGS_UI,
 } as const;

@@ -33,7 +33,7 @@
   "round": {
     "questionCount": 3,
     "shuffle": true,
-    "topicSelection": "learner-choice",
+    "topicSelection": "learner-picks",
     "timeLimitSeconds": 90
   },
   "pointsPerCorrect": 10,

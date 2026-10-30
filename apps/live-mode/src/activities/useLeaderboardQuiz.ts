@@ -52,8 +52,8 @@ function parse(v: unknown): LeaderboardEntry | null {
   const e = v as Record<string, unknown>;
   if (
     typeof e.displayName !== "string" ||
-    typeof e.score !== "number" ||
-    typeof e.elapsedMs !== "number" ||
+    typeof e.score !== "number" || !Number.isFinite(e.score) ||
+    typeof e.elapsedMs !== "number" || !Number.isFinite(e.elapsedMs) ||
     !(e.finishedAt === null || typeof e.finishedAt === "number")
   ) {
     return null;

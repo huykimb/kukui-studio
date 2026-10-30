@@ -76,7 +76,7 @@ TimedQuizConfig {
   round: {
     questionCount: number         // questions drawn per attempt/round
     shuffle: boolean              // pull order randomized if true
-    topicSelection: "author-fixed" | "learner-choice"   // menu shown or not
+    topicSelection: "all-topics" | "learner-picks"   // menu shown or not
     timeLimitSeconds: number      // single countdown for the whole round
   }
   pointsPerCorrect: number        // flat award; no partial credit
@@ -251,7 +251,7 @@ Related transport notes for a privacy review:
 
 ## Open questions for the instructor-facing design (before writing code)
 
-1. **Topic menu.** Does `topicSelection: "learner-choice"` matter for v1, or is "author fixes the topic mix per quiz, make three quizzes for three units" good enough? Cuts a whole menu screen if so.
+1. **Topic menu.** Does `topicSelection: "learner-picks"` matter for v1, or is "author fixes the topic mix per quiz, make three quizzes for three units" good enough? Cuts a whole menu screen if so.
 2. **Scoring.** Flat `pointsPerCorrect` only, or does speed matter (bonus for a fast correct answer)? The brief says "points given per correct answer," so plain and flat is the literal read; a speed bonus is a v2 note, not blocking.
 3. **Leaderboard scope.** Confirm the Live leaderboard is acceptable as session-scoped only (resets every live round). This is the hard ceiling imposed by "no backend," not a cut corner that can be upgraded later without adding one.
 4. **[Review] Identity.** Confirm nicknames/aliases as the default and whether real names should be available at all in v1.

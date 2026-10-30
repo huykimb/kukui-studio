@@ -60,6 +60,7 @@
     }
   ],
   "round": { "questionCount": 5, "shuffle": true, "timeLimitSeconds": 60 },
+  "appearance": { "theme": "auto" },
   "pointsPerCorrect": 10,
   "live": { "signaling": "nostr" }
 }

@@ -8,7 +8,10 @@ import {
   isComplete,
   isCorrect,
   promptParts,
-  type LeaderboardQuizConfig, type LeaderboardQuizQuestion } from "./schema.js";
+  shuffled,
+  type LeaderboardQuizConfig,
+  type LeaderboardQuizQuestion,
+} from "./schema.js";
 import "./Component.css";
 
 type Stage = "start" | "playing" | "done";
@@ -21,8 +24,6 @@ type PersonalRecord = {
   lastAttemptAt: string;
 };
 
-const FEEDBACK_MS = 1200;
-
 const DEFAULT_STRINGS: Record<string, string> = {
   start: "Start",
   submit: "Submit",
@@ -30,6 +31,18 @@ const DEFAULT_STRINGS: Record<string, string> = {
   savedNotice: "Your best score is saved on this device only.",
   clearRecord: "Clear my saved record",
   playAgain: "Play again",
+  next: "Next",
+  questionOf: "Question {n} of {total}",
+  points: "pts",
+  correct: "Correct.",
+  incorrect: "Incorrect.",
+  answerLabel: "Answer:",
+  secondsLeft: "s left",
+  bestLine: "Your best: {score} pts in {seconds}s ({attempts}).",
+  noRecord: "No saved record yet.",
+  attempt: "attempt",
+  attempts: "attempts",
+  noTimeLimit: "No time limit",
 };
 
 // ponytail: keyed by title, not a config hash — two quizzes with the same title share a record.
@@ -51,8 +64,15 @@ function saveRecord(key: string, rec: PersonalRecord) {
   }
 }
 
-export function Component({ config, onSubmit, headingLevel = 1 }: ActivityProps<LeaderboardQuizConfig>) {
-  const t = (k: string) => config.strings?.[k] ?? DEFAULT_STRINGS[k] ?? k;
+export function Component({
+  config,
+  onSubmit,
+  headingLevel = 1,
+}: ActivityProps<LeaderboardQuizConfig>) {
+  const t = (k: string, vars?: Record<string, string | number>) =>
+    (config.strings?.[k] ?? DEFAULT_STRINGS[k] ?? k).replace(/\{(\w+)\}/g, (m, name: string) =>
+      String(vars?.[name] ?? m),
+    );
   const scoring = useMemo(() => resolveScoring(config, { mode: "points" }), [config]);
   const headingId = useId();
   const key = recordKey(config);
@@ -62,10 +82,13 @@ export function Component({ config, onSubmit, headingLevel = 1 }: ActivityProps<
   const [deck, setDeck] = useState<LeaderboardQuizQuestion[]>([]);
   const [idx, setIdx] = useState(0);
   const [correct, setCorrect] = useState(0);
-  const [left, setLeft] = useState(config.round.timeLimitSeconds);
+  const [left, setLeft] = useState(config.round.timeLimitSeconds ?? 0);
   const [answers, setAnswers] = useState<string[]>([]);
   const [result, setResult] = useState<{ ok: boolean; q: LeaderboardQuizQuestion } | null>(null);
   const [record, setRecord] = useState<PersonalRecord | null>(() => loadRecord(key));
+  // WCAG 2.2.1: learners can turn the author's time limit off.
+  const [untimed, setUntimed] = useState(false);
+  const timed = config.round.timeLimitSeconds != null && !untimed;
   const startedAt = useRef(0);
 
   // Reset when config changes externally (Studio Preview edits, draft load).
@@ -76,7 +99,9 @@ export function Component({ config, onSubmit, headingLevel = 1 }: ActivityProps<
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [config]);
 
-  const showMenu = (config.round.topicSelection ?? "learner-choice") === "learner-choice" && config.topics.length > 1;
+  const showMenu =
+    (config.round.topicSelection ?? "learner-picks") === "learner-picks" &&
+    config.topics.length > 1;
   const activeTopics = showMenu ? picked : new Set(config.topics.map((x) => x.id));
   const pool = useMemo(
     () => config.questions.filter((q) => activeTopics.has(q.topicId)),
@@ -85,12 +110,11 @@ export function Component({ config, onSubmit, headingLevel = 1 }: ActivityProps<
   );
 
   const start = () => {
-    const d = pool.slice();
-    if (config.round.shuffle ?? true) d.sort(() => Math.random() - 0.5);
+    const d = (config.round.shuffle ?? true) ? shuffled(pool) : pool;
     setDeck(d.slice(0, config.round.questionCount));
     setIdx(0);
     setCorrect(0);
-    setLeft(config.round.timeLimitSeconds);
+    setLeft(config.round.timeLimitSeconds ?? 0);
     setAnswers([]);
     setResult(null);
     startedAt.current = Date.now();
@@ -103,7 +127,8 @@ export function Component({ config, onSubmit, headingLevel = 1 }: ActivityProps<
     const raw = correct * config.pointsPerCorrect;
     const max = deck.length * config.pointsPerCorrect;
     const prev = loadRecord(key);
-    const better = !prev || raw > prev.bestScore || (raw === prev.bestScore && elapsed < prev.bestTimeMs);
+    const better =
+      !prev || raw > prev.bestScore || (raw === prev.bestScore && elapsed < prev.bestTimeMs);
     const next: PersonalRecord = {
       bestScore: better ? raw : prev!.bestScore,
       bestTimeMs: better ? elapsed : prev!.bestTimeMs,
@@ -123,32 +148,28 @@ export function Component({ config, onSubmit, headingLevel = 1 }: ActivityProps<
 
   // Countdown.
   useEffect(() => {
-    if (stage !== "playing") return;
+    if (stage !== "playing" || !timed) return;
     const id = setInterval(() => setLeft((l) => l - 1), 1000);
     return () => clearInterval(id);
-  }, [stage]);
+  }, [stage, timed]);
   useEffect(() => {
-    if (stage === "playing" && left <= 0) finish();
+    if (stage === "playing" && timed && left <= 0) finish();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [left, stage]);
 
-  // After feedback shows, move on (or finish on the last question).
-  useEffect(() => {
-    if (!result) return;
-    const id = setTimeout(() => {
-      setResult(null);
-      setAnswers([]);
-      if (idx + 1 >= deck.length) finish();
-      else setIdx(idx + 1);
-    }, FEEDBACK_MS);
-    return () => clearTimeout(id);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [result]);
+  // Feedback stays until the learner presses Next (or Enter), so screen readers can finish reading it.
+  const advance = () => {
+    setResult(null);
+    setAnswers([]);
+    if (idx + 1 >= deck.length) finish();
+    else setIdx(idx + 1);
+  };
 
   const submitAnswer = (e: React.FormEvent) => {
     e.preventDefault();
+    if (result) return advance();
     const q = deck[idx];
-    if (!q || result || !isComplete(q, answers)) return;
+    if (!q || !isComplete(q, answers)) return;
     const ok = isCorrect(q, answers);
     if (ok) setCorrect((c) => c + 1);
     setResult({ ok, q });
@@ -172,8 +193,12 @@ export function Component({ config, onSubmit, headingLevel = 1 }: ActivityProps<
   };
 
   const recordLine = record
-    ? `Your best: ${record.bestScore} pts in ${Math.round(record.bestTimeMs / 1000)}s (${record.attempts} ${record.attempts === 1 ? "attempt" : "attempts"}).`
-    : "No saved record yet.";
+    ? t("bestLine", {
+        score: record.bestScore,
+        seconds: Math.round(record.bestTimeMs / 1000),
+        attempts: `${record.attempts} ${t(record.attempts === 1 ? "attempt" : "attempts")}`,
+      })
+    : t("noRecord");
 
   const q = deck[idx];
   const parts = q ? promptParts(q) : null;
@@ -181,7 +206,9 @@ export function Component({ config, onSubmit, headingLevel = 1 }: ActivityProps<
     ? answerLists(q).map((_, i) => (
         <input
           key={i}
-          className={["kukui-tq__input", result ? (result.ok ? "is-correct" : "is-incorrect") : ""].filter(Boolean).join(" ")}
+          className={["kukui-tq__input", result ? (result.ok ? "is-correct" : "is-incorrect") : ""]
+            .filter(Boolean)
+            .join(" ")}
           value={answers[i] ?? ""}
           onChange={(e) => setAnswers((a) => Object.assign([...a], { [i]: e.target.value }))}
           readOnly={!!result}
@@ -225,11 +252,26 @@ export function Component({ config, onSubmit, headingLevel = 1 }: ActivityProps<
                 ))}
               </div>
             ) : null}
+            {config.round.timeLimitSeconds != null ? (
+              <label className="kukui-tq__check">
+                <input
+                  type="checkbox"
+                  checked={untimed}
+                  onChange={(e) => setUntimed(e.target.checked)}
+                />
+                {t("noTimeLimit")}
+              </label>
+            ) : null}
             <p className="kukui-tq__meta">
               {recordLine} {t("savedNotice")}
             </p>
             <div className="kukui-tq__actions">
-              <button type="button" className="kukui-tq__primary" disabled={pool.length === 0} onClick={start}>
+              <button
+                type="button"
+                className="kukui-tq__primary"
+                disabled={pool.length === 0}
+                onClick={start}
+              >
                 {t("start")}
               </button>
               {record ? (
@@ -244,14 +286,26 @@ export function Component({ config, onSubmit, headingLevel = 1 }: ActivityProps<
         {stage === "playing" && q ? (
           <>
             <div className="kukui-tq__bar">
+              <span>{t("questionOf", { n: idx + 1, total: deck.length })}</span>
               <span>
-                Question {idx + 1} of {deck.length}
+                {raw} {t("points")}
               </span>
-              <span>{raw} pts</span>
-              <span role="timer">{Math.max(left, 0)}s left</span>
+              {timed ? (
+                <span role="timer">
+                  {Math.max(left, 0)}
+                  {t("secondsLeft")}
+                </span>
+              ) : null}
             </div>
             {parts ? null : <p className="kukui-tq__prompt">{q.prompt}</p>}
-            {q.image ? <img className="kukui-tq__image" src={q.image.src} alt={q.image.alt} draggable={false} /> : null}
+            {q.image ? (
+              <img
+                className="kukui-tq__image"
+                src={q.image.src}
+                alt={q.image.alt}
+                draggable={false}
+              />
+            ) : null}
             <form className="kukui-tq__form" onSubmit={submitAnswer}>
               {parts ? (
                 <p className="kukui-tq__prompt kukui-tq__blank">
@@ -265,20 +319,26 @@ export function Component({ config, onSubmit, headingLevel = 1 }: ActivityProps<
               ) : (
                 answerInputs
               )}
-              <button type="submit" className="kukui-tq__primary" disabled={!!result || !isComplete(q, answers)}>
-                {t("submit")}
+              <button
+                type="submit"
+                className="kukui-tq__primary"
+                disabled={!result && !isComplete(q, answers)}
+              >
+                {result ? t("next") : t("submit")}
               </button>
             </form>
             {/* Always rendered so the feedback row never reflows the card. */}
             <p
-              className={["kukui-tq__feedback", result ? "is-visible" : ""].filter(Boolean).join(" ")}
+              className={["kukui-tq__feedback", result ? "is-visible" : ""]
+                .filter(Boolean)
+                .join(" ")}
               role="status"
               aria-live="polite"
             >
               {result
                 ? result.ok
-                  ? `✓ Correct. ${result.q.feedbackCorrect ?? ""}`
-                  : `✗ Incorrect. Answer: ${answerText(result.q)}. ${result.q.feedbackIncorrect ?? ""}`
+                  ? `✓ ${t("correct")} ${result.q.feedbackCorrect ?? ""}`
+                  : `✗ ${t("incorrect")} ${t("answerLabel")} ${answerText(result.q)}. ${result.q.feedbackIncorrect ?? ""}`
                 : ""}
             </p>
           </>
@@ -287,8 +347,8 @@ export function Component({ config, onSubmit, headingLevel = 1 }: ActivityProps<
         {stage === "done" ? (
           <>
             <output className="kukui-tq__score">
-              {left <= 0 ? `${t("timesUp")} ` : ""}
-              {raw} / {max} pts
+              {timed && left <= 0 ? `${t("timesUp")} ` : ""}
+              {raw} / {max} {t("points")}
               {(() => {
                 const band = bandMessage(scoring.bands, percentage({ raw, max }));
                 return band ? <span className="kukui-tq__band"> · {band}</span> : null;
@@ -297,7 +357,11 @@ export function Component({ config, onSubmit, headingLevel = 1 }: ActivityProps<
             <p className="kukui-tq__meta">{recordLine}</p>
             <div className="kukui-tq__actions">
               {scoring.enableRetry ? (
-                <button type="button" className="kukui-tq__primary" onClick={() => setStage("start")}>
+                <button
+                  type="button"
+                  className="kukui-tq__primary"
+                  onClick={() => setStage("start")}
+                >
                   {t("playAgain")}
                 </button>
               ) : null}
